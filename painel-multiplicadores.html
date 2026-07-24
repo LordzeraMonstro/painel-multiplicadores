@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Rodadas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+<style>
+  :root {
+    --bg: #0A0E17;
+    --panel: #11162238;
+    --panel-solid: #121826;
+    --line: rgba(255,255,255,0.07);
+    --amber: #FFB020;
+    --mint: #34D399;
+    --rose: #FB4E67;
+    --text: #E7EBF3;
+    --muted: #7C879E;
+    --muted-2: #4B5468;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .eyebrow::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--mint);
+    box-shadow: 0 0 8px var(--mint);
+  }
+
+  h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 30px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+
+  .sub {
+    color: var(--muted);
+    font-size: 13.5px;
+    margin: 0 0 28px;
+    max-width: 560px;
+    line-height: 1.5;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1.1fr 1.4fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 760px) {
+    .row { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--panel-solid);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted-2);
+    margin-bottom: 14px;
+  }
+
+  /* ---- Entrada rápida ---- */
+  .entry-form {
+    display: flex;
+    gap: 10px;
+  }
+  input[type="text"] {
+    flex: 1;
+    background: #0D1220;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  input[type="text"]:focus { border-color: var(--amber); }
+  input[type="text"]::placeholder { color: var(--muted-2); font-size: 15px; }
+
+  button {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 13.5px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: transform .1s, opacity .15s;
+  }
+  button:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: var(--amber);
+    color: #1A1200;
+    padding: 0 22px;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    padding: 8px 14px;
+    font-size: 12.5px;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--muted-2); }
+
+  .hint {
+    font-size: 11.5px;
+    color: var(--muted-2);
+    margin-top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  /* ---- Última rodada + trajetória ---- */
+  .last-value {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 46px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .last-value.empty { color: var(--muted-2); font-size: 22px; font-weight: 500; }
+  .last-meta {
+    color: var(--muted);
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 14px;
+  }
+  svg.traj { width: 100%; height: 70px; display: block; }
+
+  /* ---- Stats grid ---- */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 760px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  .stat-card {
+    background: var(--panel-solid);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .stat-card .k {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-2);
+    margin-bottom: 6px;
+  }
+  .stat-card .v {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 22px;
+  }
+
+  /* ---- Histograma ---- */
+  .hist-row {
+    display: grid;
+    grid-template-columns: 110px 1fr 70px;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+  }
+  .hist-row .label { color: var(--muted); }
+  .hist-track {
+    height: 8px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .hist-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .4s ease;
+  }
+  .hist-row .count { text-align: right; color: var(--muted); }
+
+  .empty-note {
+    color: var(--muted-2);
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 10px 0;
+  }
+
+  /* ---- Tabela ---- */
+  .table-wrap {
+    max-height: 280px;
+    overflow-y: auto;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+  }
+  table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; }
+  thead th {
+    position: sticky; top: 0;
+    background: #0D1220;
+    text-align: left;
+    padding: 9px 12px;
+    color: var(--muted-2);
+    font-weight: 500;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--line);
+  }
+  tbody td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: var(--text);
+  }
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+  .del-btn {
+    background: none; border: none; color: var(--muted-2);
+    cursor: pointer; font-size: 14px; padding: 0 4px;
+  }
+  .del-btn:hover { color: var(--rose); }
+
+  .footer-note {
+    margin-top: 22px;
+    font-size: 11.5px;
+    color: var(--muted-2);
+    line-height: 1.6;
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+
+  /* ---- OCR / captura de tela ---- */
+  .status-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted-2);
+    margin-right: 7px;
+  }
+  .status-dot.on { background: var(--mint); box-shadow: 0 0 6px var(--mint); }
+  .status-dot.warn { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+
+  .video-wrap {
+    position: relative;
+    display: none;
+    margin-top: 14px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: #000;
+  }
+  .video-wrap video { width: 100%; display: block; }
+  .video-wrap canvas.overlay {
+    position: absolute; top: 0; left: 0;
+    cursor: crosshair;
+  }
+
+  .ocr-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+
+  .tag-auto, .tag-manual {
+    font-size: 9.5px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+  }
+  .tag-auto { background: rgba(52,211,153,0.12); color: var(--mint); }
+  .tag-manual { background: rgba(255,255,255,0.06); color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">registro manual · sem automação</div>
+  <h1>Painel de Rodadas</h1>
+  <p class="sub">Digite o multiplicador assim que a rodada terminar. O painel calcula média, mediana, distribuição por faixa e frequência — tudo descritivo, sobre o que já aconteceu.</p>
+
+  <div class="row">
+    <div class="panel">
+      <div class="panel-label">Entrada rápida</div>
+      <div class="entry-form">
+        <input type="text" id="inputValor" placeholder="ex: 2.39" inputmode="decimal" autocomplete="off">
+        <button class="btn-primary" onclick="adicionar()">Adicionar</button>
+      </div>
+      <div class="hint">Enter também adiciona &nbsp;·&nbsp; aceita vírgula ou ponto</div>
+      <div class="toolbar">
+        <button class="btn-ghost" onclick="desfazerUltimo()">Desfazer último</button>
+        <button class="btn-ghost" onclick="exportarJSON()">Exportar JSON</button>
+        <button class="btn-ghost" onclick="exportarCSV()">Exportar CSV</button>
+        <button class="btn-ghost" onclick="document.getElementById('fileImport').click()">Importar JSON</button>
+        <button class="btn-ghost" onclick="limparTudo()">Limpar tudo</button>
+        <input type="file" id="fileImport" accept=".json" style="display:none" onchange="importarJSON(event)">
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">Leitura automática (captura de tela)</div>
+      <div class="toolbar" style="margin-top:0">
+        <button class="btn-ghost" id="btnShareScreen" onclick="compartilharTela()">Compartilhar tela do jogo</button>
+        <button class="btn-ghost" id="btnStartOcr" onclick="iniciarOcr()" disabled>Iniciar leitura</button>
+        <button class="btn-ghost" id="btnStopOcr" onclick="pararOcr()" disabled>Parar leitura</button>
+      </div>
+      <div class="ocr-status" id="ocrStatus"><span class="status-dot" id="ocrDot"></span>desligado — compartilhe a aba do jogo e marque a área do número</div>
+      <div class="video-wrap" id="videoWrap">
+        <video id="videoEl" autoplay muted playsinline></video>
+        <canvas class="overlay" id="overlayCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px">
+    <div class="panel-label">Última rodada</div>
+    <div id="lastValue" class="last-value empty">— aguardando —</div>
+    <div id="lastMeta" class="last-meta">&nbsp;</div>
+    <svg class="traj" id="trajSvg" viewBox="0 0 400 70" preserveAspectRatio="none"></svg>
+  </div>
+
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <div class="row" style="grid-template-columns: 1.2fr 1fr;">
+    <div class="panel">
+      <div class="panel-label">Distribuição por faixa</div>
+      <div id="histogram"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-label">Última vez que cada faixa apareceu</div>
+      <div id="ultimaFaixa"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">Registros (<span id="totalCount">0</span>)</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Valor</th><th>Horário</th><th>Origem</th><th></th></tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Estatística descritiva apenas. Cada rodada de um RNG "provably fair" é independente das anteriores — nada aqui prevê o próximo multiplicador ou "quando ele vai sair de novo". A leitura automática apenas lê, via captura de tela, os pixels que você mesmo escolhe compartilhar — não acessa código, rede ou DOM do site. Os dados ficam só na memória desta aba; exporte em JSON antes de fechar se quiser manter o histórico.
+  </div>
+
+</div>
+
+<script>
+let capturas = [];
+
+const FAIXAS = [
+  { label: '1.00–1.49x', min: 1.00, max: 1.49, cor: '#4B5468' },
+  { label: '1.50–1.99x', min: 1.50, max: 1.99, cor: '#7C879E' },
+  { label: '2.00–2.99x', min: 2.00, max: 2.99, cor: '#34D399' },
+  { label: '3.00–4.99x', min: 3.00, max: 4.99, cor: '#5EEAD4' },
+  { label: '5.00–9.99x', min: 5.00, max: 9.99, cor: '#FFB020' },
+  { label: '10.00–19.99x', min: 10.00, max: 19.99, cor: '#FF9A3D' },
+  { label: '20.00–49.99x', min: 20.00, max: 49.99, cor: '#FB6F5C' },
+  { label: '50.00x+', min: 50.00, max: Infinity, cor: '#FB4E67' },
+];
+
+function faixaDe(v) {
+  return FAIXAS.find(f => v >= f.min && v <= f.max) || FAIXAS[0];
+}
+
+function parseValor(txt) {
+  const limpo = txt.replace('x','').replace(',', '.').trim();
+  const v = parseFloat(limpo);
+  return isNaN(v) ? null : v;
+}
+
+function adicionarValor(v, origem) {
+  const agora = new Date();
+  capturas.push({
+    valor: v,
+    timestamp: agora.getTime(),
+    horaLocal: agora.toLocaleTimeString('pt-BR'),
+    origem: origem || 'manual'
+  });
+  render();
+}
+
+function adicionar() {
+  const input = document.getElementById('inputValor');
+  const v = parseValor(input.value);
+  if (v === null || v < 1) {
+    input.style.borderColor = '#FB4E67';
+    setTimeout(() => input.style.borderColor = '', 400);
+    return;
+  }
+  adicionarValor(v, 'manual');
+  input.value = '';
+}
+
+document.getElementById('inputValor').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') adicionar();
+});
+
+function desfazerUltimo() {
+  capturas.pop();
+  render();
+}
+
+function removerIndice(i) {
+  capturas.splice(i, 1);
+  render();
+}
+
+function limparTudo() {
+  if (capturas.length === 0) return;
+  if (confirm('Apagar todos os ' + capturas.length + ' registros desta sessão?')) {
+    capturas = [];
+    render();
+  }
+}
+
+function exportarJSON() {
+  const blob = new Blob([JSON.stringify(capturas, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'multiplicadores_' + Date.now() + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportarCSV() {
+  const linhas = ['valor,timestamp,hora_local'];
+  capturas.forEach(c => linhas.push(`${c.valor},${c.timestamp},${c.horaLocal}`));
+  const blob = new Blob([linhas.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'multiplicadores_' + Date.now() + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importarJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const dados = JSON.parse(e.target.result);
+      if (Array.isArray(dados)) {
+        capturas = dados.filter(d => typeof d.valor === 'number');
+        render();
+      }
+    } catch (err) {
+      alert('Arquivo inválido.');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function mediana(vals) {
+  const s = [...vals].sort((a,b) => a-b);
+  const m = Math.floor(s.length/2);
+  return s.length % 2 !== 0 ? s[m] : (s[m-1]+s[m])/2;
+}
+
+function percentil(vals, p) {
+  const s = [...vals].sort((a,b) => a-b);
+  const idx = (p/100)*(s.length-1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  if (lo === hi) return s[lo];
+  return s[lo] + (s[hi]-s[lo])*(idx-lo);
+}
+
+function render() {
+  const n = capturas.length;
+  document.getElementById('totalCount').textContent = n;
+
+  // Última rodada
+  const lastEl = document.getElementById('lastValue');
+  const lastMetaEl = document.getElementById('lastMeta');
+  if (n === 0) {
+    lastEl.textContent = '— aguardando —';
+    lastEl.className = 'last-value empty';
+    lastMetaEl.textContent = '\u00A0';
+  } else {
+    const last = capturas[n-1];
+    lastEl.textContent = last.valor.toFixed(2) + 'x';
+    lastEl.className = 'last-value';
+    lastEl.style.color = faixaDe(last.valor).cor;
+    lastMetaEl.textContent = 'às ' + last.horaLocal + ' · rodada #' + n;
+  }
+
+  renderTrajetoria();
+  renderStats();
+  renderHistograma();
+  renderUltimaFaixa();
+  renderTabela();
+}
+
+function renderTrajetoria() {
+  const svg = document.getElementById('trajSvg');
+  const recentes = capturas.slice(-24).map(c => c.valor);
+  if (recentes.length < 2) {
+    svg.innerHTML = '<line x1="0" y1="60" x2="400" y2="60" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>';
+    return;
+  }
+  const logs = recentes.map(v => Math.log(v));
+  const min = Math.min(...logs), max = Math.max(...logs);
+  const range = max - min || 1;
+  const stepX = 400 / (recentes.length - 1);
+  let points = recentes.map((v, i) => {
+    const x = i * stepX;
+    const norm = (Math.log(v) - min) / range;
+    const y = 62 - norm * 52;
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ');
+
+  const last = recentes[recentes.length-1];
+  const lastX = (recentes.length-1)*stepX;
+  const lastNorm = (Math.log(last) - min) / range;
+  const lastY = 62 - lastNorm * 52;
+
+  svg.innerHTML = `
+    <polyline points="${points}" fill="none" stroke="#FFB020" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+    <circle cx="${lastX}" cy="${lastY}" r="4" fill="#FFB020"/>
+  `;
+}
+
+function renderStats() {
+  const grid = document.getElementById('statsGrid');
+  if (capturas.length === 0) {
+    grid.innerHTML = '';
+    return;
+  }
+  const vals = capturas.map(c => c.valor);
+  const media = vals.reduce((a,b) => a+b, 0) / vals.length;
+  const cards = [
+    ['Rodadas', vals.length],
+    ['Média', media.toFixed(2) + 'x'],
+    ['Mediana', mediana(vals).toFixed(2) + 'x'],
+    ['P25 / P75', percentil(vals,25).toFixed(2) + ' / ' + percentil(vals,75).toFixed(2)],
+    ['Máximo', Math.max(...vals).toFixed(2) + 'x'],
+    ['Mínimo', Math.min(...vals).toFixed(2) + 'x'],
+  ];
+  grid.innerHTML = cards.map(([k,v]) => `
+    <div class="stat-card">
+      <div class="k">${k}</div>
+      <div class="v">${v}</div>
+    </div>
+  `).join('');
+}
+
+function renderHistograma() {
+  const el = document.getElementById('histogram');
+  if (capturas.length === 0) {
+    el.innerHTML = '<div class="empty-note">Sem dados ainda.</div>';
+    return;
+  }
+  const n = capturas.length;
+  const contagem = FAIXAS.map(f => ({
+    ...f,
+    count: capturas.filter(c => c.valor >= f.min && c.valor <= f.max).length
+  }));
+  const maxCount = Math.max(...contagem.map(f => f.count), 1);
+  el.innerHTML = contagem.map(f => `
+    <div class="hist-row">
+      <div class="label">${f.label}</div>
+      <div class="hist-track"><div class="hist-fill" style="width:${(f.count/maxCount*100).toFixed(1)}%; background:${f.cor}"></div></div>
+      <div class="count">${f.count} · ${((f.count/n)*100).toFixed(1)}%</div>
+    </div>
+  `).join('');
+}
+
+function renderUltimaFaixa() {
+  const el = document.getElementById('ultimaFaixa');
+  if (capturas.length === 0) {
+    el.innerHTML = '<div class="empty-note">Sem dados ainda.</div>';
+    return;
+  }
+  const agora = Date.now();
+  const vistos = {};
+  for (let i = capturas.length - 1; i >= 0; i--) {
+    const f = faixaDe(capturas[i].valor);
+    if (!(f.label in vistos)) {
+      const minAtras = ((agora - capturas[i].timestamp) / 60000).toFixed(1);
+      const rodadasAtras = capturas.length - 1 - i;
+      vistos[f.label] = { minAtras, rodadasAtras, cor: f.cor };
+    }
+  }
+  el.innerHTML = Object.entries(vistos).map(([label, info]) => `
+    <div class="hist-row" style="grid-template-columns: 110px 1fr;">
+      <div class="label" style="color:${info.cor}">${label}</div>
+      <div style="text-align:right; color: var(--muted)">há ${info.rodadasAtras} rodada(s) · ${info.minAtras} min</div>
+    </div>
+  `).join('');
+}
+
+function renderTabela() {
+  const body = document.getElementById('tableBody');
+  if (capturas.length === 0) {
+    body.innerHTML = '<tr><td colspan="4" class="empty-note">Nenhum registro ainda.</td></tr>';
+    return;
+  }
+  body.innerHTML = capturas.slice().reverse().map((c, revIdx) => {
+    const i = capturas.length - 1 - revIdx;
+    const cor = faixaDe(c.valor).cor;
+    const origemTag = c.origem === 'auto'
+      ? '<span class="tag-auto">AUTO</span>'
+      : '<span class="tag-manual">MANUAL</span>';
+    return `
+      <tr>
+        <td>${i+1}</td>
+        <td style="color:${cor}; font-weight:600">${c.valor.toFixed(2)}x</td>
+        <td>${c.horaLocal}</td>
+        <td>${origemTag}</td>
+        <td><button class="del-btn" onclick="removerIndice(${i})">✕</button></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+render();
+
+/* ============================================================
+   LEITURA AUTOMÁTICA VIA CAPTURA DE TELA (OCR)
+   - Captura apenas a tela/aba que você mesmo escolhe compartilhar
+   - Não acessa DOM, rede ou código do site em nenhum momento
+   - Detecta o valor quando ele "congela" (ponto de explosão) e
+     só então adiciona automaticamente, evitando leituras no meio do voo
+   ============================================================ */
+
+let stream = null;
+let ocrWorker = null;
+let ocrRunning = false;
+let cropRect = null; // {x, y, w, h} em pixels reais do vídeo
+let dragStart = null;
+let ultimaLeitura = { valor: null, streak: 0 };
+let ultimoComprometido = null;
+let errosSeguidos = 0;
+const OCR_TICK_MS = 350;
+const STREAK_NECESSARIO = 3; // nº de leituras iguais seguidas p/ considerar "congelado"
+
+const videoEl = document.getElementById('videoEl');
+const overlayCanvas = document.getElementById('overlayCanvas');
+const octx = overlayCanvas.getContext('2d');
+const videoWrap = document.getElementById('videoWrap');
+const ocrStatusEl = document.getElementById('ocrStatus');
+const ocrDot = document.getElementById('ocrDot');
+const btnShareScreen = document.getElementById('btnShareScreen');
+const btnStartOcr = document.getElementById('btnStartOcr');
+const btnStopOcr = document.getElementById('btnStopOcr');
+
+function setStatus(msg, estado) {
+  ocrDot.className = 'status-dot' + (estado ? ' ' + estado : '');
+  ocrStatusEl.innerHTML = '<span class="status-dot ' + (estado||'') + '"></span>' + msg;
+}
+
+async function compartilharTela() {
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 5 } });
+  } catch (err) {
+    setStatus('permissão negada ou cancelada: ' + err.message, 'warn');
+    return;
+  }
+  videoEl.srcObject = stream;
+  videoWrap.style.display = 'block';
+  cropRect = null;
+  btnStartOcr.disabled = true;
+
+  stream.getVideoTracks()[0].addEventListener('ended', () => {
+    pararOcr();
+    videoWrap.style.display = 'none';
+    setStatus('compartilhamento encerrado', null);
+  });
+
+  videoEl.addEventListener('loadedmetadata', ajustarOverlay, { once: true });
+  setStatus('arraste no vídeo pra marcar a área onde o multiplicador aparece', 'warn');
+}
+
+function ajustarOverlay() {
+  const rect = videoEl.getBoundingClientRect();
+  overlayCanvas.width = videoEl.clientWidth;
+  overlayCanvas.height = videoEl.clientHeight;
+  overlayCanvas.style.width = videoEl.clientWidth + 'px';
+  overlayCanvas.style.height = videoEl.clientHeight + 'px';
+}
+window.addEventListener('resize', () => { if (videoEl.videoWidth) ajustarOverlay(); });
+
+overlayCanvas.addEventListener('mousedown', (e) => {
+  const r = overlayCanvas.getBoundingClientRect();
+  dragStart = { x: e.clientX - r.left, y: e.clientY - r.top };
+});
+overlayCanvas.addEventListener('mousemove', (e) => {
+  if (!dragStart) return;
+  const r = overlayCanvas.getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  octx.strokeStyle = '#FFB020';
+  octx.lineWidth = 2;
+  octx.setLineDash([5, 4]);
+  octx.strokeRect(dragStart.x, dragStart.y, x - dragStart.x, y - dragStart.y);
+});
+overlayCanvas.addEventListener('mouseup', (e) => {
+  if (!dragStart) return;
+  const r = overlayCanvas.getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  const scaleX = videoEl.videoWidth / overlayCanvas.width;
+  const scaleY = videoEl.videoHeight / overlayCanvas.height;
+  const rx = Math.min(dragStart.x, x), ry = Math.min(dragStart.y, y);
+  const rw = Math.abs(x - dragStart.x), rh = Math.abs(y - dragStart.y);
+  dragStart = null;
+  if (rw < 10 || rh < 10) return; // seleção muito pequena, ignora
+
+  cropRect = {
+    x: Math.round(rx * scaleX),
+    y: Math.round(ry * scaleY),
+    w: Math.round(rw * scaleX),
+    h: Math.round(rh * scaleY)
+  };
+  btnStartOcr.disabled = false;
+  setStatus('área marcada — clique em "Iniciar leitura"', null);
+});
+
+function binarizar(ctxAlvo, w, h) {
+  const img = ctxAlvo.getImageData(0, 0, w, h);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const lum = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+    const val = lum > 130 ? 255 : 0;
+    d[i] = d[i+1] = d[i+2] = val;
+  }
+  ctxAlvo.putImageData(img, 0, 0);
+}
+
+async function iniciarOcr() {
+  if (!cropRect) return;
+  btnStartOcr.disabled = true;
+  btnStopOcr.disabled = false;
+  btnShareScreen.disabled = true;
+  setStatus('carregando motor de OCR...', 'warn');
+
+  if (!ocrWorker) {
+    ocrWorker = await Tesseract.createWorker('eng');
+    await ocrWorker.setParameters({ tessedit_char_whitelist: '0123456789.,x' });
+  }
+
+  setStatus('monitorando...', 'on');
+
+  const captureCanvas = document.createElement('canvas');
+  const scale = 3;
+  captureCanvas.width = cropRect.w * scale;
+  captureCanvas.height = cropRect.h * scale;
+  const cctx = captureCanvas.getContext('2d');
+
+  ocrRunning = true;
+  errosSeguidos = 0;
+  loopOcr(captureCanvas, cctx);
+}
+
+async function loopOcr(captureCanvas, cctx) {
+  while (ocrRunning) {
+    const inicio = performance.now();
+    try {
+      cctx.drawImage(
+        videoEl,
+        cropRect.x, cropRect.y, cropRect.w, cropRect.h,
+        0, 0, captureCanvas.width, captureCanvas.height
+      );
+      binarizar(cctx, captureCanvas.width, captureCanvas.height);
+
+      const { data } = await ocrWorker.recognize(captureCanvas);
+      processarLeituraOcr(data.text);
+      errosSeguidos = 0;
+    } catch (e) {
+      errosSeguidos++;
+      console.warn('[OCR] falha na leitura:', e.message);
+      // se o motor quebrar internamente várias vezes seguidas, recria o worker
+      if (errosSeguidos >= 4) {
+        setStatus('motor de OCR travou, reiniciando...', 'warn');
+        try { await ocrWorker.terminate(); } catch (_) {}
+        ocrWorker = await Tesseract.createWorker('eng');
+        await ocrWorker.setParameters({ tessedit_char_whitelist: '0123456789.,x' });
+        errosSeguidos = 0;
+        setStatus('monitorando...', 'on');
+      }
+    }
+    // só agenda a próxima leitura depois que essa terminou de verdade
+    const decorrido = performance.now() - inicio;
+    const espera = Math.max(0, OCR_TICK_MS - decorrido);
+    await new Promise(r => setTimeout(r, espera));
+  }
+}
+
+function processarLeituraOcr(textoBruto) {
+  const v = parseValor(textoBruto);
+  if (v === null || v < 1 || v > 10000) {
+    ultimaLeitura = { valor: null, streak: 0 };
+    return;
+  }
+
+  if (v === ultimaLeitura.valor) {
+    ultimaLeitura.streak++;
+  } else {
+    ultimaLeitura = { valor: v, streak: 1 };
+  }
+
+  setStatus('lendo: ' + v.toFixed(2) + 'x', 'on');
+
+  if (ultimaLeitura.streak === STREAK_NECESSARIO && v !== ultimoComprometido) {
+    ultimoComprometido = v;
+    adicionarValor(v, 'auto');
+    setStatus('capturado automaticamente: ' + v.toFixed(2) + 'x', 'on');
+  }
+}
+
+function pararOcr() {
+  ocrRunning = false;
+  btnStartOcr.disabled = !cropRect;
+  btnStopOcr.disabled = true;
+  btnShareScreen.disabled = false;
+  setStatus('leitura parada', null);
+}
+</script>
+</body>
+</html>
